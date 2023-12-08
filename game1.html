@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <link rel="stylesheet" href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" />
+  <link href="https://fonts.googleapis.com/css?family=Work+Sans:200,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+  
+    .game-container {
+      position: relative;
+    }
+   
+    /* Add z-index to message-container to ensure it's above the grid */
+    .message-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 1;
+    }
+  
+    /* Update the z-index for win and lose messages */
+    .win-message, .lose-message {
+      font-size: 24px;
+      animation: scaleAnimation 3s ease-in-out;
+    }
+  
+    .boxes-container {
+      position: relative;
+      width: 600px;
+      height: 600px; /* Added height to ensure a square grid */
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1px;
+      margin: auto;
+    }
+  
+    .box {
+      width: calc((600px - 11px) / 12); /* Adjusted width calculation */
+      height: calc((600px - 11px) / 12); /* Adjusted height calculation */
+      background-color: grey;
+      border: 1px solid rgb(212, 212, 212);
+    }
+  
+    .water-box {
+      background-color: aqua;
+    }
+  
+    .start-box {
+      background-color: red;
+    }
+  
+    .end-box {
+      background-color: green;
+    }
+  
+    @keyframes fireworks {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.5);
+        opacity: 0.5;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    .firework-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.firework {
+  width: 10px;
+  height: 10px;
+  background-color: #ffeb3b;
+  position: absolute;
+  border-radius: 50%;
+  animation: fireworks 1s ease-in-out infinite;
+}
+
+    /* .firework-container.animate {
+      animation: fireworks 1s ease-in-out infinite;
+    }
+   */
+    @keyframes scaleAnimation {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.2);
+      }
+    }
+  
+    .message-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 1;
+    }
+  
+    .win-message, .lose-message {
+      font-size: 24px;
+      animation: scaleAnimation 3s ease-in-out;
+    }
+  
+    .lose-message {
+      color: red;
+    }
+  
+    /* Additional style to handle animation */
+    @keyframes shakeAnimation {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      50% {
+        transform: translateX(-10px);
+      }
+    }
+  
+    .water-box:hover {
+      animation: shakeAnimation 0.3s ease-in-out infinite;
+    }
+    body{
+      background-color: cornflowerblue;
+    }
+  </style>
+
+  <title>MineField!</title>
+</head>
+<body>
+  <div class="game-container flex flex-col justify-center items-center">
+    <h1 class="game-message">Message</h1>
+    <div class="firework-container"></div>
+    <div class="boxes-container relative"></div>
+    <div class="message-container">
+      <div class="win-message"></div>
+      <div class="lose-message"></div>
+    </div>
+  </div>
+  <audio id="background-music" autoplay loop>
+    <source src="audio\Happy-Days(chosic.com).mp3" type="audio/mp3">
+  </audio>
+  <audio id="losing-sound" src="audio\mixkit-retro-arcade-lose-2027.wav"></audio>
+  <audio id="winning-sound" src="audio\win.wav"></audio>
+
+  <script>
+    let N = 12; // 12 rows and 12 columns
+let startIndex = 97;
+let endIndex = 144;
+let waterBoxes = [ 97, 98, 99 , 111, 112, 113 , 125, 126 , 127, 128, 140, 141,142, 130, 131, 132, 144 ];
+
+let boxesContainer = document.querySelector('.boxes-container');
+
+generateInactiveGameBoard();
+
+function generateActiveGameBoard() {
+  boxesContainer.innerHTML = '';
+
+  for (let i = 1; i <= N * N; i++) {
+    let boxHTML = generateBoxHTML(i);
+    boxesContainer.innerHTML += boxHTML;
+  }
+
+  document.querySelectorAll('.box').forEach(function (boxElement) {
+    boxElement.addEventListener('mouseover', function () {
+      const boxIndex = parseInt(boxElement.dataset.index);
+
+      if (waterBoxes.includes(boxIndex)) {
+        // Mouse is over a water box, do nothing
+        boxElement.classList.add('water-hover');
+      } else if (boxIndex === endIndex) {
+        // Mouse is over the end box, trigger win
+        updateGameMessage('You won!');
+      } else {
+        // Mouse is over a non-water box, trigger loss
+        userLost();
+      }
+    });
+
+    boxElement.addEventListener('mouseleave', function () {
+      boxElement.classList.remove('water-hover');
+    });
+  });
+
+  document.querySelector('.end-box').addEventListener('mouseover', function () {
+    updateGameMessage('You won!');
+    playWinningSound();
+  });
+
+  document.querySelector('.boxes-container').addEventListener('mouseleave', userLost);
+}
+
+function userLost() {
+  playLosingSound();
+  updateGameMessage('You lost! Try again.');
+  pauseBackgroundMusic();
+  generateInactiveGameBoard();
+  playLosingAnimation();
+  
+}
+
+function playLosingSound() {
+  const losingSound = document.getElementById('losing-sound');
+  losingSound.play();
+}
+
+function pauseBackgroundMusic() {
+  const backgroundMusic = document.getElementById('background-music');
+  backgroundMusic.pause();
+}
+
+function playLosingAnimation() {
+  const loseMessages = document.querySelectorAll('.lose-message');
+  loseMessages.forEach((message) => {
+    message.classList.add('animate');
+  });
+
+  setTimeout(() => {
+    loseMessages.forEach((message) => {
+      message.classList.remove('animate');
+    });
+  }, 3000);
+}
+function generateInactiveGameBoard() {
+  const fireworksContainer = document.createElement('div');
+  fireworksContainer.className = 'firework-container';
+  document.body.appendChild(fireworksContainer);
+
+  fireworksContainer.innerHTML = '';
+  fireworksContainer.classList.remove('animate');
+
+  // Generate fireworks by appending elements to the fireworks container
+  for (let i = 0; i < 20; i++) {
+    let firework = document.createElement('div');
+    firework.className = 'firework';
+    fireworksContainer.appendChild(firework);
+  }
+
+  boxesContainer.innerHTML = '';
+  for (let i = 1; i <= N * N; i++) {
+    let boxHTML = generateInactiveBoxHTML(i);
+    boxesContainer.innerHTML += boxHTML;
+  }
+
+  // Dynamically set the position of the fireworks container
+  const rect = boxesContainer.getBoundingClientRect();
+  fireworksContainer.style.top = rect.top + 'px';
+  fireworksContainer.style.left = rect.left + 'px';
+
+  // setTimeout(() => {
+  //   fireworksContainer.classList.add('animate');
+  // }, 100);
+
+  document.querySelector('.start-box').addEventListener('click', startGame);
+
+  // Hide fireworks after 3 seconds
+  setTimeout(() => {
+    fireworksContainer.classList.remove('animate');
+    fireworksContainer.remove(); // Remove the fireworks container
+  }, 3000);
+}
+
+
+
+
+function playBackgroundMusic() {
+  const backgroundMusic = document.getElementById('background-music');
+  backgroundMusic.play();
+}
+
+
+let gameIsOver = false;
+
+// Use the 'ended' event to restart background music after winning sound finishes
+const congratulationsSound = document.getElementById('winning-sound');
+congratulationsSound.addEventListener('ended', function() {
+  const backgroundMusic = document.getElementById('background-music');
+  backgroundMusic.play();
+});
+
+
+function playWinningSound() {
+      const winningSound = document.getElementById('winning-sound');
+      winningSound.play();
+      generateInactiveGameBoard();
+    }
+    function updateGameMessage(message) {
+  const leftWinMessage = document.querySelector('.win-message');
+  const leftLoseMessage = document.querySelector('.lose-message');
+
+  leftWinMessage.innerHTML = message;
+  leftLoseMessage.innerHTML = message;
+
+  if (!gameIsOver) {
+    if (message === 'You won!') {
+      playWinningSound();
+      // Remove the call to generateActiveGameBoard here
+      const winMessageContainer = document.querySelector('.message-container');
+      winMessageContainer.classList.add('animate');
+    } else if (message === 'You lost! Try again.') {
+      playLosingSound();
+      pauseBackgroundMusic();
+      playLosingAnimation();
+      generateInactiveGameBoard();
+    }
+
+    gameIsOver = true;
+
+  }
+}
+
+function startGame() {
+  updateGameMessage('Game started, avoid the gray boxes!');
+  generateActiveGameBoard();
+  playBackgroundMusic();
+}
+
+
+  function stopGame() {
+    playWinningSound(); // Call the playWinningSound function when the game is won
+    const congratulationsSound = document.getElementById('winning-sound');
+    congratulationsSound.play();
+    generateInactiveGameBoard();
+
+    setTimeout(() => {
+      const winMessageContainer = document.querySelector('.message-container');
+      winMessageContainer.classList.remove('animate');
+      generateInactiveGameBoard();
+    }, 3000);
+  }
+
+
+function generateBoxHTML(i) {
+  let isWater = waterBoxes.includes(i);
+  return `
+    <p data-index=${i} class="box ${i == startIndex ? 'start-box' : ''} ${i == endIndex ? 'end-box' : ''} ${isWater ? 'water-box' : ''}">${i}</p>
+  `;
+}
+
+function generateInactiveBoxHTML(i) {
+  return `
+    <p class="box ${i == startIndex ? 'start-box' : ''} ${waterBoxes.includes(i) ? 'water-box' : ''}">${i}</p>
+  `;
+}
+</script>
+</body>
+</html>
